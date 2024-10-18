@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: keepalive-tuning
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: keepalive-tuning
+  template:
+    metadata:
+      labels:
+        name: keepalive-tuning
+    spec:
+      hostPID: true
+      containers:
+      - name: sysctl
+        image: busybox:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          chroot /host /bin/sh -c "sysctl -w net.ipv4.tcp_keepalive_time=30"
+          chroot /host /bin/sh -c "sysctl -w net.ipv4.tcp_keepalive_intvl=30"
+          sleep infinity
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - name: host
+          mountPath: /host
+      hostNetwork: true
+      volumes:
+      - name: host
+        hostPath:
+          path: /proc/1/root
+      tolerations:
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - effect: NoExecute
+        operator: Exists
+      restartPolicy: Always
